@@ -51,6 +51,23 @@ static void ext4_sb_setuuid(struct ext4_super_block *es, const void *arg)
 	memcpy(es->s_uuid, (__u8 *)arg, UUID_SIZE);
 }
 
+static void ext4_sb_setfeatureset(struct ext4_super_block *es, const void *arg) {
+	const struct ext4_feature_change_set *features = arg;
+
+	/*
+	 * Check that feature sets before the change match the user's expected
+	 * state.
+	 */
+	if (es->s_feature_compat != features->old.compat ||
+		es->s_feature_incompat != features->old.incompat ||
+		es->s_feature_ro_compat != features->old.ro_compat)
+		return;
+
+	es->s_feature_compat = features->new.compat;
+	es->s_feature_incompat = features->new.incompat;
+	es->s_feature_ro_compat = features->new.ro_compat;
+}
+
 static
 int ext4_update_primary_sb(struct super_block *sb, handle_t *handle,
 			   ext4_update_sb_callback func,
@@ -1212,6 +1229,73 @@ static int ext4_ioctl_setuuid(struct file *filp,
 	return ret;
 }
 
+static int ext4_ioctl_getfeatures(struct ext4_sb_info *sbi,
+				struct ext4_feature_set __user *ufeatures) {
+	int ret = 0;
+	struct ext4_feature_set features;
+
+	lock_buffer(sbi->s_sbh);
+	features.compat = sbi->s_es->s_feature_compat;
+	features.incompat = sbi->s_es->s_feature_incompat;
+	features.ro_compat = sbi->s_es->s_feature_ro_compat;
+	unlock_buffer(sbi->s_sbh);
+
+	if (copy_to_user(ufeatures, &features, sizeof(features)))
+		return -EFAULT;
+	return ret;
+}
+
+static int ext4_ioctl_setfeatures(
+	struct file *filp,
+	const struct ext4_feature_change_set __user *ufeatures) {
+	int ret = 0;
+	struct ext4_feature_change_set features;
+	__le32  compat_changes, incompat_changes, ro_compat_changes;
+	struct super_block *sb = file_inode(filp)->i_sb;
+
+	if (copy_from_user(&features, ufeatures, sizeof(features)))
+		return -EFAULT;
+
+	/*
+	 * For each feature bit changed, check that the feature is supported.
+	 */
+	compat_changes = features.old.compat ^ features.new.compat;
+	if ((features.old.compat ^ compat_changes) & !OK_COMPAT_FEATURES)
+		return -EOPNOTSUPP;
+	if ((features.old.compat & compat_changes) & !OK_CLEAR_COMPAT_FEATURES)
+		return -EOPNOTSUPP;
+
+	incompat_changes = features.old.incompat ^ features.new.incompat;
+	if ((features.old.incompat ^ incompat_changes) & !OK_INCOMPAT_FEATURES)
+		return -EOPNOTSUPP;
+	if ((features.old.incompat & incompat_changes) &
+		!OK_CLEAR_INCOMPAT_FEATURES)
+		return -EOPNOTSUPP;
+
+	ro_compat_changes = features.old.ro_compat ^ features.new.ro_compat;
+	if ((features.old.ro_compat ^ ro_compat_changes) &
+		!OK_RO_COMPAT_FEATURES)
+		return -EOPNOTSUPP;
+	if ((features.old.ro_compat & ro_compat_changes) &
+		!OK_CLEAR_RO_COMPAT_FEATURES)
+		return -EOPNOTSUPP;
+
+	EXT4_FEATURE_RO_COMPAT_METADATA_CSUM
+		if (FEATURE_ON(E2P_FEATURE_INCOMPAT,
+		EXT4_FEATURE_INCOMPAT_CSUM_SEED)) {
+		if (!ext2fs_has_feature_metadata_csum(sb)) {
+			fputs(_("Setting feature 'metadata_csum_seed' "
+				"is only supported\non filesystems with "
+				"the metadata_csum feature enabled.\n"),
+				stderr);
+			return 1;
+		}
+
+	ret = ext4_update_superblocks_fn(sb, ext4_sb_setfeatureset,
+					&features);
+	return ret;
+}
+
 static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -1587,13 +1671,20 @@ resizefs_out:
 		return ext4_ioctl_getlabel(EXT4_SB(sb), (void __user *)arg);
 
 	case FS_IOC_SETFSLABEL:
-		return ext4_ioctl_setlabel(filp,
-					   (const void __user *)arg);
+		return ext4_ioctl_setlabel(filp, (const void __user *)arg);
 
 	case EXT4_IOC_GETFSUUID:
 		return ext4_ioctl_getuuid(EXT4_SB(sb), (void __user *)arg);
+
 	case EXT4_IOC_SETFSUUID:
 		return ext4_ioctl_setuuid(filp, (const void __user *)arg);
+
+	case EXT4_IOC_GETFEATURES:
+		return ext4_ioctl_getfeatures(EXT4_SB(sb), (void __user *)arg);
+
+        case EXT4_IOC_SETFEATURES:
+		return ext4_ioctl_setfeatures(filp, (const void __user *)arg);
+
 	default:
 		return -ENOTTY;
 	}
@@ -1673,6 +1764,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_SETFSLABEL:
 	case EXT4_IOC_GETFSUUID:
 	case EXT4_IOC_SETFSUUID:
+        case EXT4_IOC_GETFEATURES:
+        case EXT4_IOC_SETFEATURES:
 		break;
 	default:
 		return -ENOIOCTLCMD;

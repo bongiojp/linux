@@ -700,6 +700,18 @@ enum {
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
 #define EXT4_FREE_BLOCKS_RERESERVE_CLUSTER      0x0040
 
+/* */
+struct ext4_feature_set {
+   __le32  compat;
+   __le32  incompat;
+   __le32  ro_compat;
+};
+
+struct ext4_feature_change_set {
+	struct ext4_feature_set old;
+	struct ext4_feature_set new;
+};
+
 /*
  * ioctl commands
  */
@@ -726,6 +738,8 @@ enum {
 #define EXT4_IOC_CHECKPOINT		_IOW('f', 43, __u32)
 #define EXT4_IOC_GETFSUUID		_IOR('f', 44, struct fsuuid)
 #define EXT4_IOC_SETFSUUID		_IOW('f', 44, struct fsuuid)
+#define EXT4_IOC_GETFEATURES            _IOR('f', 45, struct ext4_feature_set)
+#define EXT4_IOC_SETFEATURES            _IOW('f', 45, struct ext4_feature_change_set)
 
 #define EXT4_IOC_SHUTDOWN _IOR ('X', 125, __u32)
 
@@ -2222,6 +2236,13 @@ static inline bool ext4_has_incompat_features(struct super_block *sb)
 
 extern int ext4_feature_set_ok(struct super_block *sb, int readonly);
 
+/* Features supported by EXT4_IOC_SETFEATURESET */
+#define OK_COMPAT_FEATURES	        (EXT4_FEATURE_COMPAT_ORPHAN_FILE)
+#define OK_INCOMPAT_FEATURES            (EXT4_FEATURE_INCOMPAT_CSUM_SEED)
+#define OK_RO_COMPAT_FEATURES           (EXT4_FEATURE_RO_COMPAT_LARGE_FILE)
+#define OK_CLEAR_COMPAT_FEATURES	(EXT4_FEATURE_COMPAT_EXT_ATTR)
+#define OK_CLEAR_INCOMPAT_FEATURES	(EXT4_FEATURE_INCOMPAT_CSUM_SEED)
+#define OK_CLEAR_RO_COMPAT_FEATURES	(EXT4_FEATURE_RO_COMPAT_LARGE_FILE)
 /*
  * Superblock flags
  */
