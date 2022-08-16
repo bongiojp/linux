@@ -460,8 +460,8 @@ static int __ext4_ext_check(const char *function, unsigned int line,
 		error_msg = "invalid eh_entries";
 		goto corrupted;
 	}
-	if (!ext4_valid_extent_entries(inode, eh, lblk, &pblk, depth)) {
-		error_msg = "invalid extent entries";
+	if (unlikely(le16_to_cpu(eh->eh_entries) == 0 && depth > 0)) {
+		error_msg = "invalid eh_entries for internal extent";
 		goto corrupted;
 	}
 	if (unlikely(depth > 32)) {
