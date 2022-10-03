@@ -563,6 +563,8 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	 * Try to see if we can get the block without requesting a new
 	 * file system block.
 	 */
+
+	/**** down_read i_data_sem */
 	down_read(&EXT4_I(inode)->i_data_sem);
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		retval = ext4_ext_map_blocks(handle, inode, map, 0);
@@ -627,6 +629,7 @@ found:
 	 */
 	map->m_flags &= ~EXT4_MAP_FLAGS;
 
+	/// hmmmm
 	ext4_fc_track_inode(handle, inode);
 	/*
 	 * New blocks allocate and/or writing to unwritten extent
@@ -634,6 +637,7 @@ found:
 	 * the write lock of i_data_sem, and call get_block()
 	 * with create == 1 flag.
 	 */
+	/******* down_write i_data_sem */
 	down_write(&EXT4_I(inode)->i_data_sem);
 
 	/*

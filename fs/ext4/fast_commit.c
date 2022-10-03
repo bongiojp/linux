@@ -566,6 +566,7 @@ __releases(fc_committing_lock)
 	 */
 #ifdef CONFIG_LOCKDEP
 	WARN_ON(lockdep_is_held(&ei->i_data_sem));
+//	ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_NOMEM, NULL);
 #endif
 
 	while (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {

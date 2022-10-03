@@ -5598,10 +5598,12 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		}
 		reserv_clstrs = ar->len;
 		if (ar->flags & EXT4_MB_USE_ROOT_BLOCKS) {
+			// WE CALL mark_inode_dirty_sync() in this method !!!! dquot_alloc_block_nofail
 			dquot_alloc_block_nofail(ar->inode,
 						 EXT4_C2B(sbi, ar->len));
 		} else {
 			while (ar->len &&
+				// WE CALL mark_inode_dirty_sync() in this method !!!! dquot_alloc_block
 				dquot_alloc_block(ar->inode,
 						  EXT4_C2B(sbi, ar->len))) {
 

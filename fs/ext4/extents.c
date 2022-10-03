@@ -4064,6 +4064,7 @@ static int get_implied_cluster_alloc(struct super_block *sb,
  *
  *
  * Need to be called with
+ ************************************** down_write (i_data_sem )
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
  * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
  *

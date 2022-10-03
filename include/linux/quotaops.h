@@ -300,7 +300,8 @@ static inline int dquot_alloc_space_nodirty(struct inode *inode, qsize_t nr)
 static inline void dquot_alloc_space_nofail(struct inode *inode, qsize_t nr)
 {
 	__dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN|DQUOT_SPACE_NOFAIL);
-	mark_inode_dirty_sync(inode);
+
+	// mark_inode_dirty_sync(inode);
 }
 
 static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
@@ -314,7 +315,8 @@ static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
 		 * would become fully dirty soon anyway and it reportedly
 		 * reduces lock contention.
 		 */
-		mark_inode_dirty(inode);
+		// maybe this harms us if we are using fastcommit???
+//		mark_inode_dirty(inode);
 	}
 	return ret;
 }
